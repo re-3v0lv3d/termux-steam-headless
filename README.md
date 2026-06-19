@@ -14,8 +14,6 @@ Abre **Termux** (desde [F-Droid](https://f-droid.org/packages/com.termux/)) y pe
 curl -fsSL https://raw.githubusercontent.com/re-3v0lv3d/termux-steam-headless/main/install.sh | bash
 ```
 
-> Sustituye `re-3v0lv3d` por tu usuario de GitHub una vez publicado el repo.
-
 Eso hace **todo automáticamente**:
 
 1. Clona este repositorio en `~/termux-steam-headless`
@@ -150,26 +148,6 @@ curl -fsSL https://raw.githubusercontent.com/re-3v0lv3d/termux-steam-headless/ma
 - Juegos AAA recientes no son realistas; prioriza indie, 2D y retro
 - Sin Sunshine/Moonlight host
 - Rendimiento muy dependiente del hardware
-
----
-
-## Publicar tu fork en GitHub
-
-Si eres el mantenedor del repositorio:
-
-1. Crea el repo en GitHub: `termux-steam-headless`
-2. Edita `install.sh` línea 12 y cambia el valor por defecto:
-
-   ```bash
-   TSH_REPO_DEFAULT="re-3v0lv3d/termux-steam-headless"
-   ```
-
-3. Sube el código y actualiza `re-3v0lv3d` en este README
-4. El one-liner quedará:
-
-   ```bash
-   curl -fsSL https://raw.githubusercontent.com/re-3v0lv3d/termux-steam-headless/main/install.sh | bash
-   ```
 
 ---
 
