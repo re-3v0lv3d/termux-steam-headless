@@ -6,6 +6,10 @@ if [[ -f "$HOME/.termux-steam-headless/root-dir" ]]; then
 else
     ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 fi
+
+# shellcheck source=../scripts/lib.sh
+source "$ROOT_DIR/scripts/lib.sh"
+
 PROOT_DISTRO="${PROOT_DISTRO:-ubuntu}"
 PID_DIR="$HOME/.termux-steam-headless"
 mkdir -p "$PID_DIR"
@@ -29,27 +33,20 @@ Variables:
 EOF
 }
 
-ensure_shm() {
-    if [[ ! -d /dev/shm ]]; then
-        mkdir -p /dev/shm
-        chmod 1777 /dev/shm 2>/dev/null || chmod 755 /dev/shm
-    fi
-}
-
 launch_x11_app() {
     if command -v am >/dev/null 2>&1; then
-        am start -n com.termux.x11/.MainActivity >/dev/null 2>&1 \
-            || am start -n com.termux.x11.extra/.MainActivity >/dev/null 2>&1 \
+        am start -n com.termux.x11.extra/.MainActivity >/dev/null 2>&1 \
+            || am start -n com.termux.x11/.MainActivity >/dev/null 2>&1 \
             || true
     fi
 }
 
 cmd_start() {
-    ensure_shm
+    setup_shm_host
     launch_x11_app
     sleep 2
 
-    nohup proot-distro login "$PROOT_DISTRO" --shared-tmp -- \
+    nohup proot_login "$PROOT_DISTRO" -- \
         bash "$ROOT_DIR/scripts/start-services.sh" \
         >"$PID_DIR/service.log" 2>&1 &
 
@@ -66,15 +63,14 @@ cmd_stop() {
         rm -f "$PID_DIR/wrapper.pid"
     fi
 
-    proot-distro login "$PROOT_DISTRO" --shared-tmp -- \
-        bash "$ROOT_DIR/scripts/stop-services.sh" 2>/dev/null || true
+    proot_login "$PROOT_DISTRO" -- bash "$ROOT_DIR/scripts/stop-services.sh" 2>/dev/null || true
 
     echo "Servicios detenidos."
 }
 
 cmd_status() {
-    proot-distro login "$PROOT_DISTRO" --shared-tmp -- \
-        bash "$ROOT_DIR/scripts/status-services.sh" 2>/dev/null || echo "Proot no responde o no está instalado."
+    proot_login "$PROOT_DISTRO" -- bash "$ROOT_DIR/scripts/status-services.sh" 2>/dev/null \
+        || echo "Proot no responde o no está instalado."
 }
 
 cmd_url() {
@@ -94,19 +90,19 @@ cmd_set_password() {
     read -r -p "Nueva contraseña VNC: " pass
     [[ -n "$pass" ]] || { echo "Contraseña vacía."; exit 1; }
     echo "$pass" >"$PID_DIR/vnc-password"
-    proot-distro login "$PROOT_DISTRO" --shared-tmp -- \
+    proot_login "$PROOT_DISTRO" -- \
         bash -c "mkdir -p ~/.vnc && x11vnc -storepasswd '$pass' ~/.vnc/passwd"
     echo "Contraseña actualizada."
 }
 
 cmd_shell() {
-    ensure_shm
-    proot-distro login "$PROOT_DISTRO" --shared-tmp
+    setup_shm_host
+    proot_login "$PROOT_DISTRO"
 }
 
 cmd_reinstall() {
     rm -f "$HOME/.termux-steam-headless-installed"
-    proot-distro login "$PROOT_DISTRO" --shared-tmp -- \
+    proot_login "$PROOT_DISTRO" -- \
         bash "$ROOT_DIR/scripts/proot-setup.sh" "$ROOT_DIR" --force
     touch "$HOME/.termux-steam-headless-installed"
 }

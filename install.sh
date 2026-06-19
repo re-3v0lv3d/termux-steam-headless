@@ -85,14 +85,6 @@ require_termux() {
     [[ -n "${PREFIX:-}" && -d "$PREFIX" ]] || die "Ejecuta esto solo dentro de Termux (instálalo desde F-Droid)."
 }
 
-ensure_shm() {
-    if [[ ! -d /dev/shm ]]; then
-        mkdir -p /dev/shm
-        chmod 1777 /dev/shm 2>/dev/null || chmod 755 /dev/shm
-        log "Creado /dev/shm"
-    fi
-}
-
 install_termux_packages() {
     log "Actualizando paquetes de Termux..."
     yes | pkg update
@@ -135,8 +127,11 @@ run_proot_setup() {
     fi
 
     log "Configurando Ubuntu proot (15-40 min la primera vez)..."
-    proot-distro login "$PROOT_DISTRO" --shared-tmp -- \
-        bash "$ROOT_DIR/scripts/proot-setup.sh" "$ROOT_DIR"
+    setup_shm_host
+    if [[ -n "${TSH_SHM_BIND:-}" ]]; then
+        log "Usando bind mount: ${TSH_SHM_BIND} → /dev/shm"
+    fi
+    proot_login "$PROOT_DISTRO" -- bash "$ROOT_DIR/scripts/proot-setup.sh" "$ROOT_DIR"
     touch "$STATE_FILE"
 }
 
@@ -202,10 +197,15 @@ main() {
 
     if [[ "${LOCAL_RUN:-0}" != "1" ]]; then
         bootstrap_repo "$@"
+    else
+        ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     fi
 
+    # shellcheck source=scripts/lib.sh
+    source "$ROOT_DIR/scripts/lib.sh"
+
     require_termux
-    ensure_shm
+    setup_shm_host
     install_termux_packages
     install_proot_distro
     install_launcher

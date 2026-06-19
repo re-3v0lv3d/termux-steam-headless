@@ -119,11 +119,20 @@ steam-headless stop && steam-headless start
 steam-headless logs
 ```
 
-### Error `/dev/shm`
+### Error `/dev/shm` (permission denied)
+
+En Android no se puede crear `/dev/shm` sin root. El instalador lo resuelve automáticamente con un bind mount. Si falla:
 
 ```bash
-mkdir -p /dev/shm && chmod 755 /dev/shm
-steam-headless start
+mkdir -p ~/.termux-steam-headless/shm && chmod 755 ~/.termux-steam-headless/shm
+steam-headless stop && steam-headless start
+```
+
+Si ya tenías una instalación anterior, actualiza el repo y vuelve a ejecutar el instalador:
+
+```bash
+cd ~/termux-steam-headless && git pull
+curl -fsSL https://raw.githubusercontent.com/re-3v0lv3d/termux-steam-headless/main/install.sh | bash
 ```
 
 ### Steam no abre
