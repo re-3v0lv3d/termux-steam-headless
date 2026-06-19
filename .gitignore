@@ -1,0 +1,4 @@
+termux-steam-headless/
+logs/
+*.log
+.termux-steam-headless-installed

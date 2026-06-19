@@ -1,0 +1,130 @@
+#!/data/data/com.termux/files/usr/bin/bash
+set -euo pipefail
+
+if [[ -f "$HOME/.termux-steam-headless/root-dir" ]]; then
+    ROOT_DIR="$(cat "$HOME/.termux-steam-headless/root-dir")"
+else
+    ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+fi
+PROOT_DISTRO="${PROOT_DISTRO:-ubuntu}"
+PID_DIR="$HOME/.termux-steam-headless"
+mkdir -p "$PID_DIR"
+
+usage() {
+    cat <<'EOF'
+termux-steam-headless — Steam + escritorio web en Termux
+
+Uso:
+  steam-headless start          Inicia X11, escritorio, VNC y noVNC
+  steam-headless stop           Detiene servicios
+  steam-headless status         Estado de servicios
+  steam-headless url            Muestra URL del navegador
+  steam-headless logs           Últimas líneas del log
+  steam-headless set-password   Cambia contraseña VNC
+  steam-headless shell          Abre shell dentro del proot
+  steam-headless reinstall      Vuelve a ejecutar setup interno
+
+Variables:
+  PROOT_DISTRO=ubuntu           Distro proot-distro a usar
+EOF
+}
+
+ensure_shm() {
+    if [[ ! -d /dev/shm ]]; then
+        mkdir -p /dev/shm
+        chmod 1777 /dev/shm 2>/dev/null || chmod 755 /dev/shm
+    fi
+}
+
+launch_x11_app() {
+    if command -v am >/dev/null 2>&1; then
+        am start -n com.termux.x11/.MainActivity >/dev/null 2>&1 \
+            || am start -n com.termux.x11.extra/.MainActivity >/dev/null 2>&1 \
+            || true
+    fi
+}
+
+cmd_start() {
+    ensure_shm
+    launch_x11_app
+    sleep 2
+
+    nohup proot-distro login "$PROOT_DISTRO" --shared-tmp -- \
+        bash "$ROOT_DIR/scripts/start-services.sh" \
+        >"$PID_DIR/service.log" 2>&1 &
+
+    echo $! >"$PID_DIR/wrapper.pid"
+    sleep 4
+    cmd_url
+    echo ""
+    echo "Log: $PID_DIR/service.log"
+}
+
+cmd_stop() {
+    if [[ -f "$PID_DIR/wrapper.pid" ]]; then
+        kill "$(cat "$PID_DIR/wrapper.pid")" 2>/dev/null || true
+        rm -f "$PID_DIR/wrapper.pid"
+    fi
+
+    proot-distro login "$PROOT_DISTRO" --shared-tmp -- \
+        bash "$ROOT_DIR/scripts/stop-services.sh" 2>/dev/null || true
+
+    echo "Servicios detenidos."
+}
+
+cmd_status() {
+    proot-distro login "$PROOT_DISTRO" --shared-tmp -- \
+        bash "$ROOT_DIR/scripts/status-services.sh" 2>/dev/null || echo "Proot no responde o no está instalado."
+}
+
+cmd_url() {
+    local ip pass
+    ip="$(bash "$ROOT_DIR/scripts/get-ip.sh")"
+    pass="$(cat "$PID_DIR/vnc-password" 2>/dev/null || echo steamheadless)"
+    echo "Navegador: http://${ip}:6080/vnc.html"
+    echo "Contraseña VNC: ${pass}"
+}
+
+cmd_logs() {
+    tail -n 80 "$PID_DIR/service.log" 2>/dev/null || echo "Sin logs todavía. Ejecuta: steam-headless start"
+}
+
+cmd_set_password() {
+    local pass
+    read -r -p "Nueva contraseña VNC: " pass
+    [[ -n "$pass" ]] || { echo "Contraseña vacía."; exit 1; }
+    echo "$pass" >"$PID_DIR/vnc-password"
+    proot-distro login "$PROOT_DISTRO" --shared-tmp -- \
+        bash -c "mkdir -p ~/.vnc && x11vnc -storepasswd '$pass' ~/.vnc/passwd"
+    echo "Contraseña actualizada."
+}
+
+cmd_shell() {
+    ensure_shm
+    proot-distro login "$PROOT_DISTRO" --shared-tmp
+}
+
+cmd_reinstall() {
+    rm -f "$HOME/.termux-steam-headless-installed"
+    proot-distro login "$PROOT_DISTRO" --shared-tmp -- \
+        bash "$ROOT_DIR/scripts/proot-setup.sh" "$ROOT_DIR" --force
+    touch "$HOME/.termux-steam-headless-installed"
+}
+
+main() {
+    local cmd="${1:-}"
+    case "$cmd" in
+        start)         cmd_start ;;
+        stop)          cmd_stop ;;
+        status)        cmd_status ;;
+        url)           cmd_url ;;
+        logs)          cmd_logs ;;
+        set-password)  cmd_set_password ;;
+        shell)         cmd_shell ;;
+        reinstall)     cmd_reinstall ;;
+        -h|--help|help|"") usage ;;
+        *) echo "Comando desconocido: $cmd"; usage; exit 1 ;;
+    esac
+}
+
+main "$@"
