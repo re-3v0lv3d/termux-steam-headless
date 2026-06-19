@@ -40,7 +40,8 @@ bootstrap_repo() {
     fi
 
     log "Descargando repositorio ${TSH_REPO}..."
-    pkg install -y git curl >/dev/null 2>&1 || pkg install -y git curl
+    pkg install -y git curl </dev/null >/dev/null 2>&1 \
+        || pkg install -y git curl </dev/null
 
     if [[ -d "$TSH_INSTALL_DIR/.git" ]]; then
         log "Actualizando instalación existente..."
@@ -85,21 +86,24 @@ require_termux() {
     [[ -n "${PREFIX:-}" && -d "$PREFIX" ]] || die "Ejecuta esto solo dentro de Termux (instálalo desde F-Droid)."
 }
 
-install_termux_packages() {
-    log "Actualizando paquetes de Termux..."
-    yes | pkg update
-    yes | pkg upgrade || true
+termux_pkg_update() {
+    log "Actualizando índice de paquetes de Termux..."
+    # No usar "yes | pkg": con pipefail yes muere con SIGPIPE y el script termina.
+    pkg update </dev/null || true
+}
 
-    log "Instalando dependencias..."
+termux_pkg_install() {
+    log "Instalando dependencias de Termux..."
     pkg install -y \
         proot-distro wget curl git tar unzip \
-        pulseaudio dbus x11-repo jq
+        pulseaudio dbus x11-repo jq </dev/null
 
     if pkg list-installed 2>/dev/null | grep -q '^termux-x11 '; then
         log "termux-x11 ya instalado"
     else
         log "Instalando termux-x11..."
-        pkg install -y termux-x11 || warn "Instala Termux:X11-Extra manualmente para mandos BT."
+        pkg install -y termux-x11 </dev/null \
+            || warn "Instala Termux:X11-Extra manualmente para mandos BT."
     fi
 }
 
@@ -195,6 +199,11 @@ EOF
 main() {
     parse_args "$@"
 
+    # curl | bash deja stdin cerrado; redirigir para evitar que pkg/apt lean EOF
+    if [[ ! -t 0 ]]; then
+        exec 0</dev/null
+    fi
+
     if [[ "${LOCAL_RUN:-0}" != "1" ]]; then
         bootstrap_repo "$@"
     else
@@ -206,7 +215,8 @@ main() {
 
     require_termux
     setup_shm_host
-    install_termux_packages
+    termux_pkg_update
+    termux_pkg_install
     install_proot_distro
     install_launcher
     run_proot_setup

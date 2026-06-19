@@ -22,8 +22,10 @@ fi
 export DEBIAN_FRONTEND=noninteractive
 
 log "Actualizando repositorios..."
-apt-get update -y
-apt-get upgrade -y
+apt-get update -y </dev/null
+apt-get upgrade -y \
+    -o Dpkg::Options::="--force-confdef" \
+    -o Dpkg::Options::="--force-confold" </dev/null || true
 
 log "Instalando escritorio, audio, VNC y herramientas..."
 apt-get install -y \
