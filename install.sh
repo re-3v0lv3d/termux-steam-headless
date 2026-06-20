@@ -75,6 +75,7 @@ Variables:
   TSH_REPO=usuario/repo     Repositorio GitHub
   TSH_BRANCH=main           Rama a clonar
   AUTO_START=0              No iniciar al terminar
+  SKIP_MIRROR_SELECT=1    No elegir mirror automáticamente
 EOF
                 exit 0
                 ;;
@@ -108,7 +109,26 @@ termux_pkg_install() {
     fi
 }
 
-load_shared_lib() {
+load_mirror_script() {
+    local mirror_script="$ROOT_DIR/scripts/select-fastest-mirror.sh"
+    [[ -f "$mirror_script" ]] || return 0
+    if grep -q $'\r' "$mirror_script" 2>/dev/null; then
+        tr -d '\r' <"$mirror_script" >"${mirror_script}.tmp" && mv "${mirror_script}.tmp" "$mirror_script"
+    fi
+    # shellcheck source=scripts/select-fastest-mirror.sh
+    source "$mirror_script"
+}
+
+run_mirror_selection() {
+    if [[ "${SKIP_MIRROR_SELECT:-0}" == "1" ]]; then
+        log "SKIP_MIRROR_SELECT=1 — mirror automático omitido"
+        return 0
+    fi
+    if declare -f termux_select_fastest_mirror >/dev/null 2>&1; then
+        termux_select_fastest_mirror
+    fi
+}
+
     local lib="$ROOT_DIR/scripts/lib.sh"
     [[ -f "$lib" ]] || die "Falta $lib. Ejecuta: rm -rf ~/termux-steam-headless && curl -fsSL https://raw.githubusercontent.com/re-3v0lv3d/termux-steam-headless/main/install.sh | bash"
 
@@ -136,7 +156,9 @@ install_proot_distro() {
     fi
 
     if proot-distro install --help 2>&1 | grep -q 'IMAGE or PATH'; then
-        log "Instalando ${PROOT_IMAGE} via proot-distro (varios minutos, descarga OCI)..."
+        log "Descargando imagen ${PROOT_IMAGE} (proot-distro v5, Docker/OCI)..."
+        warn "Fetching manifest: 1-5 min normal. Capas de la imagen: 10-45 min según WiFi."
+        warn "Puede parecer detenido — no cierres Termux hasta que termine."
         proot-distro install "$PROOT_IMAGE" --name "$PROOT_NAME" </dev/null
     else
         log "Instalando $PROOT_NAME via proot-distro (varios minutos)..."
@@ -242,6 +264,8 @@ main() {
     load_shared_lib
 
     require_termux
+    load_mirror_script
+    run_mirror_selection
     setup_shm_host
     termux_pkg_update
     termux_pkg_install
