@@ -129,6 +129,7 @@ run_mirror_selection() {
     fi
 }
 
+load_shared_lib() {
     local lib="$ROOT_DIR/scripts/lib.sh"
     [[ -f "$lib" ]] || die "Falta $lib. Ejecuta: rm -rf ~/termux-steam-headless && curl -fsSL https://raw.githubusercontent.com/re-3v0lv3d/termux-steam-headless/main/install.sh | bash"
 
