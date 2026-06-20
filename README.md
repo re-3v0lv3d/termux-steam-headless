@@ -111,6 +111,28 @@ bash ~/termux-steam-headless/uninstall.sh
 
 ## Solución de problemas
 
+### "Fetching manifest" tarda mucho (Ubuntu / proot-distro)
+
+**Sí, es normal.** proot-distro v5 descarga `ubuntu:24.04` como imagen Docker:
+
+| Fase | Tiempo típico |
+|------|----------------|
+| Fetching manifest | 1–5 minutos |
+| Descarga de capas | 10–45 minutos (según WiFi/datos) |
+| Reinstalación | Casi instantáneo (caché local) |
+
+Puede parecer detenido en el mismo mensaje varios minutos. No cierres Termux.
+
+### Mirror de Termux lento
+
+Al inicio el instalador prueba los mirrors y elige el de menor latencia. Para repetir:
+
+```bash
+source ~/termux-steam-headless/scripts/select-fastest-mirror.sh
+termux_select_fastest_mirror
+pkg update
+```
+
 ### Pantalla negra en noVNC
 
 ```bash
