@@ -108,15 +108,34 @@ termux_pkg_install() {
     fi
 }
 
-install_proot_distro() {
-    proot_save_config "$PROOT_NAME" "$PROOT_IMAGE"
+load_shared_lib() {
+    local lib="$ROOT_DIR/scripts/lib.sh"
+    [[ -f "$lib" ]] || die "Falta $lib. Ejecuta: rm -rf ~/termux-steam-headless && curl -fsSL https://raw.githubusercontent.com/re-3v0lv3d/termux-steam-headless/main/install.sh | bash"
 
-    if proot_container_installed "$PROOT_NAME"; then
+    if grep -q $'\r' "$lib" 2>/dev/null; then
+        tr -d '\r' <"$lib" >"${lib}.tmp" && mv "${lib}.tmp" "$lib"
+    fi
+
+    # shellcheck source=scripts/lib.sh
+    source "$lib"
+
+    if ! declare -f setup_shm_host >/dev/null 2>&1; then
+        die "lib.sh corrupto o desactualizado. Borra ~/termux-steam-headless y vuelve a instalar."
+    fi
+}
+
+install_proot_distro() {
+    local state_dir="$HOME/.termux-steam-headless"
+    mkdir -p "$state_dir"
+    echo "$PROOT_NAME" >"$state_dir/proot-name"
+    echo "$PROOT_IMAGE" >"$state_dir/proot-image"
+
+    if proot-distro list -q 2>/dev/null | grep -qx "$PROOT_NAME"; then
         log "Contenedor proot '$PROOT_NAME' ya instalado"
         return
     fi
 
-    if proot_distro_is_v5; then
+    if proot-distro install --help 2>&1 | grep -q 'IMAGE or PATH'; then
         log "Instalando ${PROOT_IMAGE} via proot-distro (varios minutos, descarga OCI)..."
         proot-distro install "$PROOT_IMAGE" --name "$PROOT_NAME" </dev/null
     else
@@ -220,7 +239,7 @@ main() {
     fi
 
     # shellcheck source=scripts/lib.sh
-    source "$ROOT_DIR/scripts/lib.sh"
+    load_shared_lib
 
     require_termux
     setup_shm_host

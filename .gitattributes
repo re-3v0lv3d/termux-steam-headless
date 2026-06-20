@@ -1,2 +1,3 @@
 *.sh text eol=lf
 bin/steam-headless text eol=lf
+scripts/lib.sh text eol=lf
