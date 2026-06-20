@@ -17,7 +17,8 @@ REPO_URL="https://github.com/${TSH_REPO}.git"
 RAW_BASE="https://raw.githubusercontent.com/${TSH_REPO}/${TSH_BRANCH}"
 
 STATE_FILE="$HOME/.termux-steam-headless-installed"
-PROOT_DISTRO="${PROOT_DISTRO:-ubuntu}"
+PROOT_NAME="${PROOT_NAME:-ubuntu}"
+PROOT_IMAGE="${PROOT_IMAGE:-ubuntu:24.04}"
 AUTO_START="${AUTO_START:-1}"
 
 log()  { printf '\033[1;32m[+] %s\033[0m\n' "$*"; }
@@ -108,12 +109,20 @@ termux_pkg_install() {
 }
 
 install_proot_distro() {
-    if proot-distro list 2>/dev/null | awk 'NR>1 {print $1}' | grep -qx "$PROOT_DISTRO"; then
-        log "Distro proot '$PROOT_DISTRO' ya instalada"
+    proot_save_config "$PROOT_NAME" "$PROOT_IMAGE"
+
+    if proot_container_installed "$PROOT_NAME"; then
+        log "Contenedor proot '$PROOT_NAME' ya instalado"
         return
     fi
-    log "Instalando Ubuntu via proot-distro (varios minutos)..."
-    proot-distro install "$PROOT_DISTRO"
+
+    if proot_distro_is_v5; then
+        log "Instalando ${PROOT_IMAGE} via proot-distro (varios minutos, descarga OCI)..."
+        proot-distro install "$PROOT_IMAGE" --name "$PROOT_NAME" </dev/null
+    else
+        log "Instalando $PROOT_NAME via proot-distro (varios minutos)..."
+        proot-distro install "$PROOT_NAME" </dev/null
+    fi
 }
 
 install_launcher() {
@@ -135,7 +144,7 @@ run_proot_setup() {
     if [[ -n "${TSH_SHM_BIND:-}" ]]; then
         log "Usando bind mount: ${TSH_SHM_BIND} → /dev/shm"
     fi
-    proot_login "$PROOT_DISTRO" -- bash "$ROOT_DIR/scripts/proot-setup.sh" "$ROOT_DIR"
+    proot_login -- bash "$ROOT_DIR/scripts/proot-setup.sh" "$ROOT_DIR"
     touch "$STATE_FILE"
 }
 

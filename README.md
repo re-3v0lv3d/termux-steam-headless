@@ -119,6 +119,16 @@ steam-headless stop && steam-headless start
 steam-headless logs
 ```
 
+### Error al instalar Ubuntu (Unauthorized / ubuntu does not exist)
+
+`proot-distro` v5+ usa imágenes Docker. El instalador usa `ubuntu:24.04`. Si falló una instalación anterior:
+
+```bash
+proot-distro remove ubuntu 2>/dev/null || true
+rm -f ~/.termux-steam-headless-installed
+curl -fsSL https://raw.githubusercontent.com/re-3v0lv3d/termux-steam-headless/main/install.sh | bash
+```
+
 ### Error `/dev/shm` (permission denied)
 
 En Android no se puede crear `/dev/shm` sin root. El instalador lo resuelve automáticamente con un bind mount. Si falla:

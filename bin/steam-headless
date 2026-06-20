@@ -10,7 +10,7 @@ fi
 # shellcheck source=../scripts/lib.sh
 source "$ROOT_DIR/scripts/lib.sh"
 
-PROOT_DISTRO="${PROOT_DISTRO:-ubuntu}"
+PROOT_NAME="${PROOT_NAME:-$(proot_get_name)}"
 PID_DIR="$HOME/.termux-steam-headless"
 mkdir -p "$PID_DIR"
 
@@ -29,7 +29,8 @@ Uso:
   steam-headless reinstall      Vuelve a ejecutar setup interno
 
 Variables:
-  PROOT_DISTRO=ubuntu           Distro proot-distro a usar
+  PROOT_NAME=ubuntu             Nombre del contenedor proot-distro
+  PROOT_IMAGE=ubuntu:24.04      Imagen OCI (proot-distro v5+)
 EOF
 }
 
@@ -46,8 +47,7 @@ cmd_start() {
     launch_x11_app
     sleep 2
 
-    nohup proot_login "$PROOT_DISTRO" -- \
-        bash "$ROOT_DIR/scripts/start-services.sh" \
+    nohup proot_login -- bash "$ROOT_DIR/scripts/start-services.sh" \
         >"$PID_DIR/service.log" 2>&1 &
 
     echo $! >"$PID_DIR/wrapper.pid"
@@ -63,13 +63,13 @@ cmd_stop() {
         rm -f "$PID_DIR/wrapper.pid"
     fi
 
-    proot_login "$PROOT_DISTRO" -- bash "$ROOT_DIR/scripts/stop-services.sh" 2>/dev/null || true
+    proot_login -- bash "$ROOT_DIR/scripts/stop-services.sh" 2>/dev/null || true
 
     echo "Servicios detenidos."
 }
 
 cmd_status() {
-    proot_login "$PROOT_DISTRO" -- bash "$ROOT_DIR/scripts/status-services.sh" 2>/dev/null \
+    proot_login -- bash "$ROOT_DIR/scripts/status-services.sh" 2>/dev/null \
         || echo "Proot no responde o no está instalado."
 }
 
@@ -90,20 +90,18 @@ cmd_set_password() {
     read -r -p "Nueva contraseña VNC: " pass
     [[ -n "$pass" ]] || { echo "Contraseña vacía."; exit 1; }
     echo "$pass" >"$PID_DIR/vnc-password"
-    proot_login "$PROOT_DISTRO" -- \
-        bash -c "mkdir -p ~/.vnc && x11vnc -storepasswd '$pass' ~/.vnc/passwd"
+    proot_login -- bash -c "mkdir -p ~/.vnc && x11vnc -storepasswd '$pass' ~/.vnc/passwd"
     echo "Contraseña actualizada."
 }
 
 cmd_shell() {
     setup_shm_host
-    proot_login "$PROOT_DISTRO"
+    proot_login
 }
 
 cmd_reinstall() {
     rm -f "$HOME/.termux-steam-headless-installed"
-    proot_login "$PROOT_DISTRO" -- \
-        bash "$ROOT_DIR/scripts/proot-setup.sh" "$ROOT_DIR" --force
+    proot_login -- bash "$ROOT_DIR/scripts/proot-setup.sh" "$ROOT_DIR" --force
     touch "$HOME/.termux-steam-headless-installed"
 }
 
